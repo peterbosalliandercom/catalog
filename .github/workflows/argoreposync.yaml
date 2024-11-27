@@ -26,16 +26,34 @@ jobs:
       federatedId: ${{steps.environment.outputs.FEDERATED_ID}}
       reponamegitops: ${{ env.REPONAMEGITOPS }}
 
-
+    steps:
+        # Determine environment based on branch name
+      - name: Determine deployment environment
+        id: environment
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            ENV=prd
+            FEDERATED_ID=${{ secrets.FEDERATED_ID_PAX_PRD }}
+          elif [ "${{ github.ref_name }}" == "release" ]; then
+            ENV=acc
+            FEDERATED_ID=${{ secrets.FEDERATED_ID_PAX_ACC }}
+          else
+            ENV=tst
+            FEDERATED_ID=${{ secrets.FEDERATED_ID_PAX_TST }}
+          fi
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "FEDERATED_ID=$FEDERATED_ID" >> $GITHUB_OUTPUT
+          echo "Deploying to $ENV"
 
   ######################
   # 3. Refresh ArgoCD  #
   ######################
   refresh-argocd:
+    needs: prepare
     uses: alliander/github-workflows/.github/workflows/refresh-argo.yaml@adhoc-repo-reconcile
     with:
       argocdApp: pax-tenant-difu-gitops
       argoUrl: ${{ needs.prepare.outputs.argocd_url }}
       environment: ci
-      federatedId: "efb7c800-631e-431f-907a-082148cd6e3f"
+      federatedId: "5ee826aa-f643-4abb-8d97-0c2dc89e4389"
       repoNameGitops: ${{ needs.prepare.outputs.reponamegitops }}
