@@ -1,0 +1,59 @@
+name: github-actions-pipeline
+
+on:  
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: 
+
+env:
+  ARGOCD_URL: argocd.ci-pax-xyrk.pax-validation-tst.aws.alliander.com
+  REPONAMEGITOPS: pax-tenant-reporeconciletest-gitops
+
+jobs:
+  prepare:
+    runs-on: [ self-hosted, X64, Linux, ubuntu-22 ]
+    
+    
+    outputs:
+      environment: ${{steps.environment.outputs.environment}}
+      ecr_registry: ${{ env.ECR_REGISTRY }}
+      ecr_repository: ${{ env.ECR_REPOSITORY }}
+      aquascanner_version: ${{ env.AQUA_SCANNER_VERSION }}
+      aqua_registry: ${{ env.AQUA_REGISTRY }}
+      argocd_app_basename: ${{ env.ARGOCD_APP_BASENAME }}
+      argocd_url: ${{ env.ARGOCD_URL }}
+      awsIamRoleArn: ${{ env.AWS_AWS_IAM_ROLE_ARN }}
+      federatedId: ${{steps.environment.outputs.FEDERATED_ID}}
+      reponamegitops: ${{ env.REPONAMEGITOPS }}
+
+    steps:
+        # Determine environment based on branch name
+      - name: Determine deployment environment
+        id: environment
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            ENV=prd
+            FEDERATED_ID=${{ secrets.FEDERATED_ID_PAX_PRD }}
+          elif [ "${{ github.ref_name }}" == "release" ]; then
+            ENV=acc
+            FEDERATED_ID=${{ secrets.FEDERATED_ID_PAX_ACC }}
+          else
+            ENV=tst
+            FEDERATED_ID=${{ secrets.FEDERATED_ID_PAX_TST }}
+          fi
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "FEDERATED_ID=$FEDERATED_ID" >> $GITHUB_OUTPUT
+          echo "Deploying to $ENV"
+
+  ######################
+  # 3. Refresh ArgoCD  #
+  ######################
+  refresh-argocd:
+    needs: prepare
+    uses: alliander/github-workflows/.github/workflows/refresh-argo.yaml@adhoc-repo-reconcile
+    with:
+      argocdApp: pax-tenant-difu-gitops
+      argoUrl: ${{ needs.prepare.outputs.argocd_url }}
+      environment: ci
+      federatedId: "5ee826aa-f643-4abb-8d97-0c2dc89e4389"
+      repoNameGitops: ${{ needs.prepare.outputs.reponamegitops }}
