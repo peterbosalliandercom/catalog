@@ -32,7 +32,6 @@ jobs:
   # 3. Refresh ArgoCD  #
   ######################
   refresh-argocd:
-    needs: prepare
     uses: alliander/github-workflows/.github/workflows/refresh-argo.yaml@adhoc-repo-reconcile
     with:
       argocdApp: pax-tenant-difu-gitops
